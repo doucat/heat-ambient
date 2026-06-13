@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle,
@@ -23,12 +23,21 @@ import './styles.css';
 import { branchLabels, getCurrentEvent, rollSuddenEvent } from './gameData';
 
 const turns = ['早晨', '中午', '傍晚'];
-const turnHours = ['06:10', '12:30', '18:45'];
-const MAX_DAY = 10;
 const BAD_TEMP = 46;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const applyTemp = (temp, delta) => Number(clamp(temp + delta, 36, 60).toFixed(1));
+const cleanSuddenTitle = (title) => title.replace(/^突发：/, '');
+const endSentence = (text) => /[。！？]$/.test(text) ? text : `${text}。`;
+const splitCheckReason = (reason, success) => {
+  const parts = reason.split(/；失败/);
+  if (parts.length < 2 || !parts[0].startsWith('成功')) {
+    return reason;
+  }
+  const successText = parts[0].replace(/^成功/, '').trim();
+  const failText = parts.slice(1).join('；失败').replace(/^失败/, '').trim();
+  return success ? `成功：${endSentence(successText)}` : `失败：${endSentence(failText)}`;
+};
 
 const iconMap = {
   AlertTriangle,
@@ -50,11 +59,13 @@ const iconMap = {
   Zap
 };
 
-function makeInitialState() {
+function makeInitialState(challengeDays = 10, started = false) {
   return {
+    started,
+    challengeDays,
     day: 1,
     turn: 0,
-    temp: 42.7,
+    temp: 40,
     water: 42,
     body: 44,
     mind: 42,
@@ -64,7 +75,10 @@ function makeInitialState() {
     flags: {},
     status: 'playing',
     lastRoll: null,
-    lastOutcome: '热线接通。请在 10 天里保持体温不超过 46°C，并尽量不要和太阳争辩。',
+    lastSudden: null,
+    eventSalt: Math.random(),
+    seenEvents: [],
+    lastOutcome: `热线接通。请在 ${challengeDays} 天里保持体温不超过 46°C，并尽量不要和太阳争辩。`,
     log: [
       {
         day: 1,
@@ -130,10 +144,14 @@ function resolveChoice(state, choice) {
     result = spend >= 12 ? '豪华冰块' : spend >= 6 ? '半份冰块' : '余额尴尬';
   }
 
-  const resourceHeat = next.water + (choice.water ?? 0) <= 0 ? 1.2 : 0;
+  if (choice.tempTo !== undefined) {
+    tempDelta = Number((choice.tempTo - next.temp).toFixed(1));
+  }
+
+  const resourceHeat = choice.tempTo === undefined && next.water + (choice.water ?? 0) <= 0 ? 1.2 : 0;
   tempDelta += resourceHeat;
 
-  next.temp = applyTemp(next.temp, tempDelta);
+  next.temp = choice.tempTo !== undefined ? Number(choice.tempTo.toFixed(1)) : applyTemp(next.temp, tempDelta);
   next.water = clamp(next.water + (choice.water ?? 0) - 2, 0, 100);
   next.body = clamp(next.body + (choice.body ?? 0) - (tempDelta > 0.8 ? 3 : 1), 0, 100);
   next.mind = clamp(next.mind + (choice.mind ?? 0) - (next.turn === 1 ? 2 : 1), 0, 100);
@@ -141,14 +159,27 @@ function resolveChoice(state, choice) {
   next.money = clamp(next.money + (choice.money ?? 0), 0, 99);
   next.power = clamp(next.power + (choice.power ?? 0), 0, 100);
 
+  if (choice.fullRestore) {
+    next.water = 99;
+    next.power = 99;
+    next.money = 99;
+    next.mind = 99;
+    next.body = 99;
+  }
+
   if (choice.flag) {
     next.flags[choice.flag] = true;
   }
 
+  next.seenEvents = Array.from(new Set([...(next.seenEvents ?? []), choice.eventKey].filter(Boolean)));
+  next.currentEventIsWenwen = Boolean(choice.eventIsWenwen);
+
   const tempText = tempDelta > 0 ? `体温 +${tempDelta.toFixed(1)}°C` : `体温 ${tempDelta.toFixed(1)}°C`;
   const resourceNote = resourceHeat > 0 ? ' 资源不足让身体额外升温。' : '';
+  const reasonText = choice.check ? splitCheckReason(choice.reason, success) : choice.reason;
   next.lastRoll = rollInfo;
-  next.lastOutcome = `${result ? `${result}。` : ''}${tempText}。${choice.reason}${resourceNote}`;
+  next.lastSudden = null;
+  next.lastOutcome = `${result ? `${result}。` : ''}${tempText}。${reasonText}${resourceNote}`;
   next.log.unshift({
     day,
     turn,
@@ -158,14 +189,21 @@ function resolveChoice(state, choice) {
 
   const sudden = rollSuddenEvent(next);
   if (sudden) {
-    next.temp = applyTemp(next.temp, sudden.temp ?? 0);
+    next.temp = sudden.tempTo !== undefined ? Number(sudden.tempTo.toFixed(1)) : applyTemp(next.temp, sudden.temp ?? 0);
     next.water = clamp(next.water + (sudden.water ?? 0), 0, 100);
     next.body = clamp(next.body + (sudden.body ?? 0), 0, 100);
     next.mind = clamp(next.mind + (sudden.mind ?? 0), 0, 100);
     next.morale = clamp(next.morale + (sudden.morale ?? 0), 0, 100);
     next.money = clamp(next.money + (sudden.money ?? 0), 0, 99);
     next.power = clamp(next.power + (sudden.power ?? 0), 0, 100);
-    next.lastOutcome += ` ${sudden.title}：${sudden.text}`;
+    if (sudden.fullRestore) {
+      next.water = 99;
+      next.power = 99;
+      next.money = 99;
+      next.mind = 99;
+      next.body = 99;
+    }
+    next.lastSudden = `${cleanSuddenTitle(sudden.title)}：${sudden.text}`;
     next.log.unshift({
       day,
       turn: '突发',
@@ -176,13 +214,15 @@ function resolveChoice(state, choice) {
 
   if (next.temp > BAD_TEMP) {
     next.status = 'bad';
+    next.lastSudden = null;
     next.lastOutcome = `坏结局：体温达到 ${next.temp.toFixed(1)}°C。你成为高温热线培训教材里的反面案例。`;
     return next;
   }
 
-  if (next.day === MAX_DAY && next.turn === 2) {
+  if (next.day === next.challengeDays && next.turn === 2) {
     next.status = 'good';
-    next.lastOutcome = `好结局：你撑过了 10 天。传说中的晚风来了，虽然它像二手空调，但你活下来了。`;
+    next.lastSudden = null;
+    next.lastOutcome = `好结局：你撑过了 ${next.challengeDays} 天。传说中的晚风来了，虽然它像二手空调，但你活下来了。`;
     return next;
   }
 
@@ -205,6 +245,8 @@ function resolveChoice(state, choice) {
   } else {
     next.turn += 1;
   }
+
+  next.eventSalt = Math.random();
 
   return next;
 }
@@ -284,10 +326,49 @@ function ChoiceButton({ choice, index, onChoose, disabled, disabledReason }) {
       <span className="choice-num">{index + 1}</span>
       <span className="choice-copy">
         <b>{choice.text}</b>
-        <small>{disabled ? disabledReason : choice.detail}</small>
+        {disabled && <small>{disabledReason}</small>}
       </span>
       <Icon size={28} strokeWidth={2.5} />
     </button>
+  );
+}
+
+function StartScreen({ onStart, onToggleSound, soundOn }) {
+  const options = [
+    { days: 10, label: '10 天', note: '短篇热浪，适合快速被太阳教育。' },
+    { days: 30, label: '30 天', note: '中篇求生，资源管理开始长出牙齿。' },
+    { days: 90, label: '90 天', note: '长线末日，事件池全开，汗腺需要年假。' }
+  ];
+
+  return (
+    <main className="app start-app">
+      <section className="start-panel">
+        <div className="start-art">
+          <img src="/assets/heat-apocalypse-scene.jpg" alt="高温末日漫画场景" />
+        </div>
+        <div className="start-copy">
+          <span className="stamp">生存调度中心</span>
+          <h1>高温热线</h1>
+          <p>选择你的生存挑战。目标很朴素：别让体温超过 46°C，也别和太阳讲道理。</p>
+          <div className="story-brief">
+            <b>故事背景</b>
+            <p>连续热穹顶把城市扣成一口透明高压锅，湿球温度逼近人体散热极限，汗水开始怀疑自己的职业规划。电网被空调压到喘不过气，柏油路释放白天存下的热量，夜晚也像二次加热的外卖。官方把这叫“极端复合热事件”，居民把它叫“太阳终于疯了”。</p>
+          </div>
+          <div className="challenge-grid">
+            {options.map((option) => (
+              <button key={option.days} className="challenge-card" onClick={() => onStart(option.days)}>
+                <b>{option.label}</b>
+                <span>{option.note}</span>
+              </button>
+            ))}
+          </div>
+          <button className="sound-toggle start-sound" onClick={onToggleSound}>
+            <Volume2 size={18} />
+            {soundOn ? '关闭声音' : '开启声音'}
+          </button>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -297,18 +378,46 @@ function createAudioEngine() {
   ambient.src = '/assets/audio/heat-ambient.m4a';
   ambient.loop = true;
   ambient.volume = 0.48;
+  const wenwen = document.createElement('audio');
+  wenwen.src = '/assets/audio/wenwen.wav';
+  wenwen.loop = true;
+  wenwen.volume = 0.62;
   const clickSound = document.createElement('audio');
   clickSound.src = '/assets/audio/button-click.wav';
   clickSound.volume = 0.58;
+  let enabled = false;
+  let wenwenMode = false;
+
+  const activeTrack = () => wenwenMode ? wenwen : ambient;
+  const inactiveTrack = () => wenwenMode ? ambient : wenwen;
 
   return {
     async start() {
-      await ambient.play().catch(() => {});
+      if (!enabled) return;
+      inactiveTrack().pause();
+      await activeTrack().play().catch(() => {});
     },
-    setEnabled(enabled) {
+    setEnabled(nextEnabled) {
+      enabled = Boolean(nextEnabled);
       ambient.muted = !enabled;
+      wenwen.muted = !enabled;
       clickSound.muted = !enabled;
-      if (!enabled) ambient.pause();
+      if (!enabled) {
+        ambient.pause();
+        wenwen.pause();
+      } else {
+        this.start();
+      }
+    },
+    setWenwenMode(active) {
+      const nextMode = Boolean(active);
+      if (nextMode === wenwenMode) return;
+      const from = activeTrack();
+      wenwenMode = nextMode;
+      const to = activeTrack();
+      from.pause();
+      to.currentTime = 0;
+      if (enabled) to.play().catch(() => {});
     },
     click() {
       clickSound.currentTime = 0;
@@ -318,18 +427,26 @@ function createAudioEngine() {
 }
 
 function App() {
-  const [state, setState] = useState(makeInitialState);
+  const [state, setState] = useState(() => makeInitialState(10, false));
   const [soundOn, setSoundOn] = useState(false);
   const audioRef = useRef(null);
-  const event = getCurrentEvent(state);
+  const event = state.started ? getCurrentEvent(state) : null;
   const finished = state.status !== 'playing';
-  const currentTurn = turns[state.turn];
-  const choiceAffordability = event.choices.map((choice) => canAfford(state, choice));
+  const choiceAffordability = event ? event.choices.map((choice) => canAfford(state, choice)) : [];
   const allChoicesBlocked = !finished && choiceAffordability.every((afford) => !afford.ok);
+  const sceneImage = event?.title.includes('文文') || state.lastSudden?.includes('文文')
+    ? '/assets/wenwen-fairy-scene.jpg'
+    : '/assets/heat-apocalypse-scene.jpg';
+  const wenwenActive = sceneImage.includes('wenwen');
+
+  useEffect(() => {
+    audioRef.current?.setWenwenMode(wenwenActive);
+  }, [wenwenActive]);
 
   const ensureAudio = async () => {
     if (!audioRef.current) {
       audioRef.current = createAudioEngine();
+      audioRef.current?.setWenwenMode(wenwenActive);
     }
     if (audioRef.current) {
       await audioRef.current.start();
@@ -355,9 +472,14 @@ function App() {
     setState((prev) => resolveChoice(prev, choice));
   };
 
+  const startChallenge = async (days) => {
+    await playClick();
+    setState(makeInitialState(days, true));
+  };
+
   const reset = async () => {
     await playClick();
-    setState(makeInitialState());
+    setState(makeInitialState(state.challengeDays, true));
   };
 
   const toggleSound = async () => {
@@ -375,51 +497,21 @@ function App() {
     setSoundOn(next);
   };
 
+  if (!state.started) {
+    return <StartScreen onStart={startChallenge} onToggleSound={toggleSound} soundOn={soundOn} />;
+  }
+
   return (
     <main className="app">
       <section className="layout">
-        <section className="panel event-panel">
+        <aside className="panel choices-panel">
           <div className="event-head">
             <div>
               <span>事件：{event.title}</span>
-              <b>{currentTurn} | {turnHours[state.turn]}</b>
-            </div>
-            <small>位置：{event.place}</small>
-          </div>
-          <div className="scene">
-            <img src="/assets/heat-apocalypse-scene.jpg" alt="高温末日漫画场景" />
-            <div className="speech">
-              <b>{event.title}</b>
-              <p>{event.scene}</p>
+              <p className="event-scene-copy">{event.scene}</p>
             </div>
           </div>
-          <p className="event-copy">{event.headline}</p>
-          <div className="result-strip">
-            <div className="dice-box">
-              <Dice5 size={24} />
-              {state.lastRoll ? (
-                <span>
-                  {state.lastRoll.dice.join(' + ')}
-                  {state.lastRoll.bonus >= 0 ? ` + ${state.lastRoll.bonus}` : ` - ${Math.abs(state.lastRoll.bonus)}`}
-                  {' = '}
-                  <b>{state.lastRoll.total}</b> / 目标 {state.lastRoll.target}
-                </span>
-              ) : (
-                <span>等待检定</span>
-              )}
-            </div>
-            <div className={state.lastRoll?.success ? 'roll-ok' : state.lastRoll ? 'roll-bad' : 'roll-idle'}>
-              {state.lastRoll ? (state.lastRoll.success ? '检定成功' : '检定失败') : '今天还没掷骰'}
-            </div>
-          </div>
-        </section>
 
-        <aside className="panel choices-panel">
-          <div className="panel-title">
-            <Sun size={22} />
-            <b>你的选择（{currentTurn}）</b>
-            <span>每个选择都有后果</span>
-          </div>
           <div className="choices">
             {finished ? (
               <div className={`ending ${state.status}`}>
@@ -433,7 +525,7 @@ function App() {
                 return (
                   <ChoiceButton
                     key={choice.text}
-                    choice={choice}
+                    choice={{ ...choice, eventKey: event.key, eventIsWenwen: event.title.includes('文文') }}
                     index={index}
                     onChoose={choose}
                     disabled={!afford.ok}
@@ -444,15 +536,30 @@ function App() {
             )}
             {allChoicesBlocked && (
               <ChoiceButton
-                choice={getFallbackChoice(event)}
+                choice={{ ...getFallbackChoice(event), eventKey: event.key, eventIsWenwen: event.title.includes('文文') }}
                 index={event.choices.length}
                 onChoose={choose}
               />
             )}
           </div>
-          <div className="callout">
-            <Volume2 size={24} />
+          <div className="outcome-panel">
+            <div>
+              <Volume2 size={22} />
+              <b>结果说明</b>
+            </div>
             <p>{state.lastOutcome}</p>
+          </div>
+        </aside>
+
+        <section className="panel event-panel">
+          <div className="scene">
+            <img src={sceneImage} alt="高温末日漫画场景" />
+            {state.lastSudden && (
+              <div className="sudden-bubble">
+                <b>突发事件</b>
+                <p>{state.lastSudden}</p>
+              </div>
+            )}
           </div>
           <div className="utility-actions">
             <button className="reset" onClick={reset}>
@@ -464,21 +571,20 @@ function App() {
               {soundOn ? '关闭声音' : '开启声音'}
             </button>
           </div>
-        </aside>
+          <section className="day-card side-day-card">
+            <b>DAY {String(state.day).padStart(2, '0')} / {state.challengeDays}</b>
+            <div className="turn-track">
+              {turns.map((label, index) => (
+                <span key={label} className={index < state.turn ? 'done' : index === state.turn ? 'active' : ''}>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </section>
+        </section>
       </section>
 
       <section className="bottom-hud">
-        <section className="day-card bottom-day-card">
-          <b>DAY {String(state.day).padStart(2, '0')}</b>
-          <div className="turn-track">
-            {turns.map((label, index) => (
-              <span key={label} className={index < state.turn ? 'done' : index === state.turn ? 'active' : ''}>
-                {label}
-              </span>
-            ))}
-          </div>
-        </section>
-
         <section className="panel survival top-survival bottom-survival">
           <div className="panel-title">
             <Gauge size={22} />

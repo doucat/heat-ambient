@@ -1,4 +1,24 @@
 const c = (text, icon, detail, data) => ({ text, icon, detail, ...data });
+const branchChoice = (choice) => {
+  const isBranch =
+    Boolean(choice.flag) ||
+    Boolean(choice.requiresFlag) ||
+    Boolean(choice.conditional) ||
+    choice.detail?.includes('支线') ||
+    choice.detail?.includes('联盟') ||
+    choice.detail?.includes('人情') ||
+    choice.detail?.includes('线索');
+  if (!isBranch || choice.text.includes('（支线）')) return choice;
+  return { ...choice, text: `${choice.text}（支线）` };
+};
+const withKey = (event) => ({
+  ...event,
+  key: `${event.title}|${event.place}`,
+  choices: event.choices.map(branchChoice).map((choice, index, choices) => {
+    const repeatsBefore = choices.slice(0, index).some((item) => item.text === choice.text);
+    return repeatsBefore ? { ...choice, text: `${choice.text} ${index + 1}` } : choice;
+  })
+});
 
 const shop = {
   title: '店长的回礼',
@@ -45,6 +65,7 @@ export const branchLabels = {
   parkingMap: '地下地图',
   eggChampion: '煎蛋冠军',
   roofAlliance: '楼顶联盟',
+  iceJob: '冷库临工',
   wanted: '冷库通缉',
   badReputation: '名声变热',
   rooftopEnemy: '天台宿敌',
@@ -438,11 +459,710 @@ const schedule = [
   ]
 ];
 
+const randomEvents = [
+  [
+    {
+      title: '废校泳池寻宝',
+      place: '废弃小学泳池',
+      scene: '泳池早就没水了，池底却躺着几只密封补给箱，像文明留下的塑料遗嘱。',
+      headline: '探险提示：越荒的地方越可能有宝，也越可能有被太阳烤熟的铁门。',
+      choices: [
+        c('撬开蓝色补给箱', 'Dice5', '检定：体力，目标 8+。', { check: { stat: 'body', target: 8, successTemp: -0.9, failTemp: 0.4 }, water: 10, reason: '成功找到瓶装水和湿毛巾；失败被铁箱边缘烫到怀疑童年。' }),
+        c('沿排水口探索', 'Gauge', '降温但耗精神。', { temp: -0.8, mind: -3, water: 4, reason: '排水口里有一股阴凉气，像学校终于补发了空调预算。' }),
+        c('翻找体育器材室', 'ShieldAlert', '恢复体力。', { temp: -0.4, body: 8, power: 3, reason: '你找到护膝和一节电池，体力回升，膝盖宣布继续营业。' }),
+        c('跟空泳池许愿', 'Brain', '搞笑但会晒。', { temp: 0.6, mind: 6, morale: 4, water: -2, reason: '愿望没有回声，但你把自己哄好了；站在池底许愿也把自己晒热了。' })
+      ]
+    },
+    {
+      title: '地铁站盲盒探险',
+      place: '停运地铁站',
+      scene: '闸机全黑，站厅却比地面凉一点。广告牌写着“清凉出行”，像在进行行为艺术。',
+      headline: '寻宝提示：地下空间能降温，也可能藏着过期售货机和更过期的希望。',
+      choices: [
+        c('搜检修柜', 'Battery', '找电力。', { temp: -0.5, power: 10, reason: '检修柜里有备用电池，地下阴凉顺手帮你把体温按住。' }),
+        c('撬开售货机后盖', 'Dice5', '检定：胆量，目标 9+。', { check: { stat: 'guts', target: 9, successTemp: -1.0, failTemp: 0.7 }, water: 8, money: 2, reason: '成功摸到饮料和零钱；失败被警报声吓到原地升温。' }),
+        c('躲进站务室', 'Brain', '恢复精神。', { temp: -0.7, mind: 7, reason: '站务室像末日里的冷静小隔间，你坐了两分钟，脑子重新上线。' }),
+        c('研究线路图藏宝点', 'Timer', '换现金但升温。', { temp: 0.4, money: 5, mind: 2, reason: '你发现有人把零钱藏在票卡机下，但蹲在闷热站厅研究半天，体温上来了。' })
+      ]
+    },
+    {
+      title: '仙女文文降临',
+      place: '白光覆盖的街心花坛',
+      scene: '热浪忽然散开，仙女文文从柔亮的光里出现。她美得像清晨第一口冰水，眼睛清亮，笑起来连太阳都不好意思继续加班。',
+      headline: '奇遇提示：这不是幻觉，是高温世界终于派来的温柔补丁。',
+      choices: [
+        c('接受文文的冰晶祝福', 'Droplets', '全状态拉满。', { tempTo: 36, fullRestore: true, reason: '文文把冰晶轻轻点在你额头，热量像被请出会议室。水分、电力、现金、精神、体力全部变成 99。' }),
+        c('请文文召来清风', 'Gauge', '全状态拉满。', { tempTo: 36, fullRestore: true, reason: '她挥手唤来带花香的凉风，风路过时顺便把你的背包、钱包和人生信心都补满到 99。' }),
+        c('和文文一起救助路人', 'ShieldAlert', '全状态拉满。', { tempTo: 36, fullRestore: true, morale: 8, reason: '文文的美丽不是装饰，是让人愿意继续活下去的理由。你们分发冷光补给，五项资源全部 99。' }),
+        c('认真夸文文漂亮', 'Brain', '全状态拉满。', { tempTo: 36, fullRestore: true, reason: '你发自内心地夸她漂亮，她笑了一下，整条街像开了天界空调。资源全满，体温归 36°C。' })
+      ]
+    }
+  ],
+  [
+    {
+      title: '商场中庭寻冷',
+      place: '半废弃商场',
+      scene: '扶梯停在半路，玻璃穹顶像放大镜。中庭喷泉没水，但底座里传来冰柜般的低鸣。',
+      headline: '探险提示：商场不会免费给你快乐，但可能免费漏一点冷气。',
+      choices: [
+        c('钻进喷泉检修口', 'Dice5', '检定：体力，目标 8+。', { check: { stat: 'body', target: 8, successTemp: -1.1, failTemp: 0.6 }, power: 5, reason: '成功找到漏风管道；失败只是和喷泉底座进行热烈摔跤。' }),
+        c('搜母婴室补给', 'Droplets', '补水回精神。', { temp: -0.5, water: 9, mind: 4, reason: '你找到未拆封湿巾和水，文明的小角落还在发光。' }),
+        c('拆广告屏电池', 'Battery', '获得电力。', { temp: 0.1, power: 14, reason: '广告屏终于停止推销防晒霜，改为贡献电力。你有点热，但很值。' }),
+        c('试穿冰丝睡衣', 'Soup', '搞笑但尴尬。', { temp: 0.5, morale: 5, mind: -2, reason: '冰丝很快被热浪击穿，尴尬倒是很持久。你像一条刚出锅还嘴硬的面。' })
+      ]
+    },
+    {
+      title: '图书馆地下密室',
+      place: '市立图书馆',
+      scene: '图书馆地下一层堆着旧档案，空气干冷，书页翻动声像有人在低声说“别晒了”。',
+      headline: '寻宝提示：知识不一定改变命运，但地下书库确实能改变体温。',
+      choices: [
+        c('查避暑档案', 'Brain', '恢复精神。', { temp: -0.4, mind: 9, reason: '你找到旧城市避暑图，精神回升，脑子终于不再煎蛋。' }),
+        c('搬开档案柜', 'Dice5', '检定：体力，目标 9+。', { check: { stat: 'body', target: 9, successTemp: -1.2, failTemp: 0.8 }, water: 6, reason: '成功发现冷藏档案箱；失败被灰尘和热气联合教育。' }),
+        c('借走应急手电', 'Battery', '拿电力。', { temp: -0.2, power: 9, mind: 2, reason: '手电还有电，黑暗也没那么吓人，热浪暂时找不到你。' }),
+        c('读一本冷门诗集', 'Volume2', '搞笑回精神。', { temp: 0.3, mind: 6, morale: 3, reason: '诗很冷门，但书库不够冷。精神被拯救，体温被纸页闷了一下。' })
+      ]
+    },
+    {
+      title: '河道旧船藏宝',
+      place: '干涸河道',
+      scene: '河床裂得像城市的嘴唇，一条旧观光船卡在泥里，船舱门上写着“清凉航线”。',
+      headline: '探险提示：没有水的船也能有宝，前提是你别被甲板烫得跳舞。',
+      choices: [
+        c('搜船长室', 'Wallet', '找现金。', { temp: -0.2, money: 8, reason: '船长室里有零钱盒。船不开了，钱还挺敬业。' }),
+        c('拆船载电瓶', 'Battery', '拿电力。', { temp: 0.2, power: 16, body: -2, reason: '电瓶很沉，但电力很香。你短暂升温，长期得救。' }),
+        c('打开冷藏鱼舱', 'Dice5', '检定：运气，目标 9+。', { check: { stat: 'luck', target: 9, successTemp: -1.4, failTemp: 0.6 }, water: 5, reason: '成功找到还能用的冰袋；失败只闻到历史悠久的鱼味。' }),
+        c('把船票当护身符', 'Brain', '搞笑回精神。', { temp: 0.5, mind: 5, morale: 4, reason: '它不能上船，但能上头。你有了信念，也在甲板上多晒了一会儿。' })
+      ]
+    }
+  ],
+  [
+    {
+      title: '夜探天文馆',
+      place: '天文馆穹顶厅',
+      scene: '穹顶投影坏了一半，星星像被晒到掉帧。地下设备间却传来稳定的冷风。',
+      headline: '夜探提示：宇宙很冷，设备间也勉强学到了一点。',
+      choices: [
+        c('启动穹顶排风', 'Battery', '需要电力 6。', { requires: { power: 6 }, power: -6, temp: -1.2, mind: 4, reason: '排风启动，热气往上跑，像终于理解了剧情走向。' }),
+        c('翻找科普商店', 'Wallet', '找现金和水。', { temp: -0.4, money: 4, water: 5, reason: '你找到纪念币和瓶装水，科学精神与小卖部精神同时胜利。' }),
+        c('钻设备间冷风口', 'Dice5', '检定：体力，目标 8+。', { check: { stat: 'body', target: 8, successTemp: -1.5, failTemp: 0.7 }, reason: '成功享受宇宙级冷风；失败被风口卡住，尊严升温。' }),
+        c('向星空许愿降温', 'Brain', '搞笑回精神。', { temp: 0.4, mind: 6, morale: 5, reason: '星空没回你，但你把心态调成夜间模式；屋顶余热负责把体温调回来。' })
+      ]
+    },
+    {
+      title: '古玩街冰玉传说',
+      place: '旧城古玩街',
+      scene: '摊主说一块青玉“冬暖夏凉”，你摸了一下，发现至少“夏凉”不是完全诈骗。',
+      headline: '寻宝提示：末日古玩只分两种，能降温的和能讲故事的。',
+      choices: [
+        c('买便宜冰玉', 'Wallet', '需要现金 7。', { requires: { money: 7 }, money: -7, temp: -0.9, mind: 2, reason: '玉石贴在手腕上吸热，虽然来历可疑，但凉意很诚实。' }),
+        c('帮摊主搬遮阳伞', 'ShieldAlert', '换水和现金。', { temp: -0.5, water: 6, money: 3, body: -2, reason: '你在阴影里干活，换来水和零钱，劳动法正在热浪里沉默。' }),
+        c('鉴定祖传冰碗', 'Dice5', '检定：精神，目标 9+。', { check: { stat: 'mind', target: 9, successTemp: -1.0, failTemp: 0.5 }, money: 4, reason: '成功识破真货并赚到佣金；失败被摊主讲故事讲到升温。' }),
+        c('戴上夸张玉扳指', 'Soup', '搞笑回士气。', { temp: 0.5, morale: 6, reason: '你看起来像末日掌柜，气势很足；玉扳指被晒热后像迷你烙铁。' })
+      ]
+    },
+    {
+      title: '仙女文文的夜间补给',
+      place: '月光下的楼顶水塔',
+      scene: '文文站在水塔边，裙摆像月光做的凉风。她的美丽不刺眼，却让整座楼的热浪都放低了音量。',
+      headline: '奇遇提示：真正的美丽不是闪耀，是让人从热浪里重新看见明天。',
+      choices: [
+        c('接过文文的月光水', 'Droplets', '全状态拉满。', { tempTo: 36, fullRestore: true, reason: '月光水入口清凉，像把整个夏天按下静音键。五项资源全部 99，体温降至 36°C。' }),
+        c('请文文点亮电池', 'Battery', '全状态拉满。', { tempTo: 36, fullRestore: true, reason: '文文指尖微光落在电池上，电力、现金和勇气一起满格。你突然觉得热浪也不过如此。' }),
+        c('陪文文巡楼救人', 'ShieldAlert', '全状态拉满。', { tempTo: 36, fullRestore: true, morale: 10, reason: '她美得温柔，也强得合理：带来的冷光补给覆盖整栋楼，你的状态全部回到 99。' }),
+        c('把猫介绍给文文', 'Brain', '全状态拉满。', { tempTo: 36, fullRestore: true, reason: '橘色异短猫郑重点头，文文笑得像天台开花。世界被治愈了一秒，你也被补满了。' })
+      ]
+    }
+  ]
+];
+
+const cityChaosEvents = [
+  {
+    turn: 0,
+    title: '清晨假冷空气预报',
+    place: '社区广播杆下',
+    scene: '广播说“冷空气即将抵达”，居民们抬头看天，天也一脸没收到通知。',
+    headline: '天气不会骗人，骗人的是天气预报的乐观语气。',
+    choices: [
+      c('追着云影跑两条街', 'Dice5', '检定：体力，目标 8+。', { check: { stat: 'body', target: 8, successTemp: -0.8, failTemp: 1.0 }, water: -3, reason: '成功踩到一段移动阴影；失败就是给太阳表演晨跑。' }),
+      c('质问广播站', 'Volume2', '恢复精神但升温。', { temp: 0.5, mind: 5, reason: '你骂得很有条理，广播没道歉，喉咙先热了。' }),
+      c('收集露水', 'Droplets', '补水但费时间。', { temp: 0.2, water: 8, body: -2, reason: '露水少得像预算，但总比没有强；蹲太久让体温略升。' }),
+      c('把预报写进备忘录', 'Brain', '小幅回精神。', { temp: 0.3, mind: 4, reason: '你保留了证据，也保留了被热浪嘲笑的资格。' })
+    ]
+  },
+  {
+    turn: 0,
+    title: '邻居晒被子封路',
+    place: '小区窄巷',
+    scene: '一排被子挂在巷口，像柔软的城墙，也像热浪的棉质扩音器。',
+    headline: '邻里关系会影响路线，有时一床被子就是一场地形灾难。',
+    choices: [
+      c('帮忙收被子换阴影', 'ShieldAlert', '耗体力换降温。', { temp: -0.5, body: -3, morale: 3, reason: '你换到一小块阴影，被子主人还送你一句“挺会活”。' }),
+      c('钻被子隧道', 'Dice5', '检定：运气，目标 9+。', { check: { stat: 'luck', target: 9, successTemp: -0.7, failTemp: 0.8 }, reason: '成功穿过棉花迷宫；失败被热被子糊脸。' }),
+      c('绕远走大路', 'Timer', '稳但升温。', { temp: 0.8, body: -2, reason: '你避开冲突，也多吃了一段无遮挡阳光。' }),
+      c('发起被子听证会', 'Brain', '搞笑但热。', { temp: 0.6, mind: 4, morale: 4, reason: '流程很民主，太阳旁听并全票支持升温。' })
+    ]
+  },
+  {
+    turn: 1,
+    title: '午间冰块拍卖会',
+    place: '临时集市中央',
+    scene: '一块冰被放在碗里拍卖，竞价声比冰融化得还快。',
+    headline: '市场事件：钱能买冷静，但也能买到后悔。',
+    choices: [
+      c('高价拍下半块冰', 'Wallet', '需要现金 14。', { requires: { money: 14 }, money: -14, temp: -1.1, water: 3, reason: '冰是真的，价格也是真的。你降温了，钱包中暑了。' }),
+      c('联手邻居合买', 'ShieldAlert', '耗水换联盟。', { temp: -0.5, water: -4, morale: 5, flag: 'roofAlliance', reason: '大家分冰，也分担尴尬账单。联盟关系升温，身体降温。' }),
+      c('举报哄抬冰价', 'Volume2', '检定：胆量，目标 10+。', { check: { stat: 'guts', target: 10, successTemp: -0.6, failTemp: 0.9 }, money: 2, reason: '成功换来一点补偿；失败被摊主用眼神加热。' }),
+      c('用热笑话压价', 'Soup', '搞笑但危险。', { temp: 0.9, mind: 3, reason: '笑话很热，价格没冷。你赢了气氛，输了体温。' })
+    ]
+  },
+  {
+    turn: 1,
+    title: '太阳反光玻璃阵',
+    place: '写字楼街区',
+    scene: '玻璃幕墙把太阳复制粘贴了十几份，街区像开了多人联机烤箱。',
+    headline: '城市地形事件：不是所有路都能走，有些路在烤你。',
+    choices: [
+      c('贴墙阴影慢行', 'Droplets', '耗水小降温。', { temp: -0.4, water: -5, reason: '你贴着阴影挪动，像一片有求生欲的海苔。' }),
+      c('用外套挡反光', 'ShieldAlert', '耗体力。', { temp: -0.2, body: -4, mind: 2, reason: '外套挡光，也挡住了尊严。你没那么热，但很累。' }),
+      c('穿越玻璃阵', 'Dice5', '检定：体力，目标 11+。', { check: { stat: 'body', target: 11, successTemp: -0.3, failTemp: 1.4 }, reason: '成功快速通过；失败被反光连环教育。' }),
+      c('对玻璃摆pose', 'Brain', '搞笑升温。', { temp: 0.8, morale: 5, reason: '你拍出了末日大片，代价是变成末日热片。' })
+    ]
+  },
+  {
+    turn: 2,
+    title: '傍晚电池互助群',
+    place: '楼道群公告板',
+    scene: '群里有人发起电池互助，下面马上变成价格战、情绪战和表情包战。',
+    headline: '社交事件：互助很美好，群聊很高温。',
+    choices: [
+      c('用现金换电池', 'Wallet', '需要现金 8。', { requires: { money: 8 }, money: -8, power: 14, temp: 0.2, reason: '你换到电池，也被楼道热气多烤了一会儿。' }),
+      c('帮老人修收音机', 'Battery', '耗电换人情。', { power: -5, temp: -0.3, morale: 5, flag: 'hotlineFavor', reason: '收音机响起风声，人情也响了。电少了，心稳了。' }),
+      c('主持群聊秩序', 'Brain', '耗精神换联盟。', { mind: -5, morale: 6, flag: 'roofAlliance', temp: 0.3, reason: '你把群聊从火锅调回温水，精神被消息提示音烤焦。' }),
+      c('发一张猫猫表情包', 'Soup', '小回精神。', { temp: 0.4, mind: 4, morale: 4, reason: '大家笑了三秒，热浪笑了四秒。' })
+    ]
+  },
+  {
+    turn: 2,
+    title: '夜间冷雾车迷路',
+    place: '十字路口',
+    scene: '冷雾车开着音乐路过，却在导航里迷成一只会喷水的无头苍蝇。',
+    headline: '救援事件：追上它可能救命，追不上就是夜跑。',
+    choices: [
+      c('追冷雾车三百米', 'Dice5', '检定：体力，目标 9+。', { check: { stat: 'body', target: 9, successTemp: -1.3, failTemp: 1.0 }, water: -2, reason: '成功冲进冷雾；失败就是给城市热夜加一段跑步素材。' }),
+      c('用手电引导车辆', 'Battery', '需要电力 6。', { requires: { power: 6 }, power: -6, temp: -0.8, morale: 3, reason: '灯光救了路线，冷雾救了你。电力下班得很光荣。' }),
+      c('花钱买司机坐标', 'Wallet', '需要现金 5。', { requires: { money: 5 }, money: -5, temp: -0.6, reason: '情报很贵，但冷雾很香。' }),
+      c('模仿冷雾车音乐', 'Volume2', '搞笑升温。', { temp: 0.7, mind: 4, reason: '你学得很像，但不能喷水。群众鼓掌，体温上扬。' })
+    ]
+  }
+];
+
+const cityIssueSeeds = [
+  ['小区水压忽高忽低', '楼道水表旁', '水表转得像惊悚片配乐，邻居们端着盆等待命运开闸。'],
+  ['电梯变成桑拿房', '停运电梯口', '电梯门半开，里面的热气像刚练完瑜伽。'],
+  ['社区团购翻车', '临时取货点', '团购箱里有冰袋、热包和一张写错楼号的绝望。'],
+  ['宠物降温大会', '小区花坛边', '狗趴着，猫占阴影，人类排队申请当宠物。'],
+  ['假冒救援短信', '手机屏幕前', '短信说点击领取冷风补贴，链接热得像诈骗犯的良心。'],
+  ['高温补贴排队', '社区服务站', '队伍绕了三圈，大家都在排一份不确定的凉意。'],
+  ['楼顶晾水计划', '老楼天台', '有人把水桶排成阵法，说这样能召唤夜风。'],
+  ['空调外机合唱', '背街小巷', '一排外机轰鸣，热风吹得像城市在吹唢呐。'],
+  ['避暑谣言扩散', '业主群消息流', '群里说地下三层有冰泉，消息来源是“我二姨听说”。'],
+  ['自动门抽风', '商场入口', '自动门一开一合，像在给热浪做人工呼吸。'],
+  ['桶装水抽签', '便利店门口', '最后三桶水被放进抽签箱，命运开始塑料化。'],
+  ['冷饮摊盲盒', '街边小摊', '摊主说每杯都有惊喜，惊喜可能是冰，也可能是常温哲学。'],
+  ['太阳能充电摊', '路边蓝棚', '摊主把太阳能板摆成法阵，收费标准看心情。'],
+  ['临时遮阳棚坍塌', '街角棚架下', '遮阳棚发出一声叹息，然后决定不遮了。'],
+  ['高温热线回访', '公共电话旁', '热线真的打回来了，语气比天气凉快一点。'],
+  ['街头冰桶挑战', '广场中央', '有人把冰桶挑战改成收费项目，观众比冰多。'],
+  ['共享风扇争夺', '公交站台', '一台共享风扇被四个人围住，像小型文明火种。'],
+  ['夜市假冰鉴定', '桥洞摊位', '摊主展示透明方块，坚持说它是“情绪稳定型冰”。']
+];
+
+const cityIssueThemes = [
+  {
+    suffix: '应急处理',
+    action: (name) => `稳住${name}现场`,
+    icon: 'ShieldAlert',
+    detail: '稳妥但耗体力。',
+    data: (name, place) => ({
+      temp: 0.3,
+      body: -3,
+      water: 2,
+      reason: `你先把人群、物资和脾气分开，${place}的局面没继续滚烫；水到手一点，体力也被现场消耗掉。`
+    })
+  },
+  {
+    suffix: '投机机会',
+    action: (name) => `倒卖${name}临时名额`,
+    icon: 'Wallet',
+    detail: '赚钱但升温。',
+    data: (name) => ({
+      temp: 0.8,
+      money: 6,
+      mind: -2,
+      reason: `${name}被你包装成“限时避暑权益”，现金确实进账；但讲价、解释和被瞪眼让精神与体温一起升高。`
+    })
+  },
+  {
+    suffix: '技术抢修',
+    action: (name) => `拆开${name}旁的控制盒`,
+    icon: 'Battery',
+    detail: '检定：精神，目标 9+。',
+    data: (name) => ({
+      check: { stat: 'mind', target: 9, successTemp: -0.8, failTemp: 0.9 },
+      power: 5,
+      reason: `成功能让${name}附近的设备恢复一点秩序，顺便抠出可用电力；失败就是被线路、螺丝和热浪轮流教育。`
+    })
+  },
+  {
+    suffix: '荒诞应对',
+    action: (name) => `把${name}改成避暑表演`,
+    icon: 'Soup',
+    detail: '搞笑但有代价。',
+    data: (name) => ({
+      temp: 0.7,
+      mind: 5,
+      morale: 4,
+      water: -2,
+      reason: `${name}被你硬改成街头节目，大家笑了，心态也没那么碎；缺点是表演者本人笑出汗，水分和体温一起抗议。`
+    })
+  }
+];
+
+function shortIssueName(name) {
+  const shortNames = {
+    社区团购翻车: '团购箱',
+    宠物降温大会: '宠物区',
+    假冒救援短信: '诈骗短信',
+    高温补贴排队: '补贴队',
+    楼顶晾水计划: '晾水阵',
+    空调外机合唱: '外机',
+    避暑谣言扩散: '谣言',
+    自动门抽风: '自动门',
+    桶装水抽签: '桶装水',
+    冷饮摊盲盒: '冷饮摊',
+    太阳能充电摊: '充电摊',
+    临时遮阳棚坍塌: '遮阳棚',
+    高温热线回访: '热线',
+    街头冰桶挑战: '冰桶',
+    共享风扇争夺: '风扇',
+    夜市假冰鉴定: '假冰',
+    小区水压忽高忽低: '水压'
+  };
+  return shortNames[name] ?? name.slice(0, 4);
+}
+
+function buildCityIssueChoices(name, place, theme) {
+  const shortName = shortIssueName(name);
+  const variants = {
+    应急处理: [
+      c(`借${place}阴影排队`, 'Droplets', '降温但耗水。', { temp: -0.3, water: -4, reason: `你把队伍挪到${place}能遮一点的角落，混乱小了，暴晒也少了；只是水分仍在慢慢离职。` }),
+      c(`请大爷镇住${shortName}`, 'Timer', '联盟倾向。', { temp: 0.2, morale: 5, flag: 'roofAlliance', reason: `大爷嗓门比广播还管用，${name}终于不再乱成热锅；你多站了一会儿，体温小涨。` }),
+      c(`绕开${shortName}现场`, 'Brain', '省事但升温。', { temp: 0.9, mind: -2, reason: `你避开了麻烦，也绕进了更晒的路。问题留给别人，热量留给自己。` })
+    ],
+    投机机会: [
+      c(`低价收走${shortName}冷货`, 'Droplets', '需要现金 6。', { requires: { money: 6 }, money: -6, water: 6, temp: -0.5, reason: `你趁${name}混乱时买到一点冷物资，价格不算体面，但身体很诚实地凉了一些。` }),
+      c(`替${shortName}摊记账`, 'Timer', '赚钱但累。', { temp: 0.4, money: 4, body: -2, reason: `你帮忙记清谁欠谁一口凉风，赚到零钱；站在摊边太久，热浪也给你记了一笔。` }),
+      c(`举报${shortName}乱涨价`, 'Volume2', '检定：胆量，目标 10+。', { check: { stat: 'guts', target: 10, successTemp: -0.4, failTemp: 1.0 }, money: 2, reason: `成功能把价格压回人类范围；失败会被摊主和围观群众一起用眼神加热。` })
+    ],
+    技术抢修: [
+      c(`强启${shortName}风扇`, 'Battery', '需要电力 8。', { requires: { power: 8 }, power: -8, temp: -0.9, mind: 2, reason: `备用风扇转起来后，${name}附近终于有了空气流动；电力少了，脑子凉了。` }),
+      c(`找人合修${shortName}`, 'ShieldAlert', '联盟倾向。', { temp: 0.2, water: -3, morale: 5, flag: 'roofAlliance', reason: `路人帮你看懂线路，你分了点水当谢礼；设备没完全修好，人情倒是接上了。` }),
+      c(`拔掉${shortName}坏插头`, 'Zap', '省风险但小升温。', { temp: 0.5, power: 3, reason: `坏插头停止冒热气，你还捡回一点电力；蹲着折腾线路让身体又热了一截。` })
+    ],
+    荒诞应对: [
+      c(`给${shortName}讲冷笑话`, 'Brain', '恢复精神。', { temp: 0.5, mind: 6, morale: 4, reason: `${name}没有被解决，但大家短暂忘了自己在冒烟；你讲到嗓子发干，体温也跟着抬头。` }),
+      c(`改${shortName}纸箱帽`, 'ShieldAlert', '耗体力小降温。', { temp: -0.2, body: -3, morale: 3, reason: `纸箱帽丑得很有安全感，至少挡住了一点直晒；脖子很累，尊严也很忙。` }),
+      c(`为${shortName}心理制冰`, 'Soup', '搞笑但危险。', { temp: 0.8, mind: 4, reason: `你认真宣布“想象自己在冰箱里”，群众配合鼓掌，热浪配合升温。` })
+    ]
+  };
+
+  return [
+    c(theme.action(name), theme.icon, theme.detail, theme.data(name, place)),
+    ...variants[theme.suffix]
+  ];
+}
+
+const cityLifeEvents = cityIssueSeeds.flatMap(([name, place, scene], seedIndex) =>
+  cityIssueThemes.map((theme, themeIndex) => ({
+    turn: (seedIndex + themeIndex + 1) % 3,
+    title: `${name}${theme.suffix}`,
+    place,
+    scene,
+    headline: `${name}不是探险地点，但照样能把生存搞成选择题。`,
+    choices: buildCityIssueChoices(name, place, theme)
+  }))
+);
+
+const generatedPlaces = [
+  ['废弃水族馆', '裂开的观景隧道', '玻璃后面没有鱼，只有热浪在假装游泳。'],
+  ['旧机场候机楼', '停摆登机口', '航班屏幕还在滚动“延误”，像对整个人类文明的总结。'],
+  ['山脚防空洞', '潮湿洞口', '洞里传来冷风，洞外太阳像在收门票。'],
+  ['影视城雪景棚', '假雪仓库', '塑料雪花堆在角落，竟然比真实天气更有职业道德。'],
+  ['大学实验楼', '低温实验室外', '门禁没电，里面却还有一点科学的凉意。'],
+  ['旧医院后勤楼', '药品冷藏间', '冷藏间嗡嗡作响，像末日里最后一台认真上班的机器。'],
+  ['物流园仓库', '蓝色卷帘门前', '快递箱堆成小山，谁也不知道里面是冰袋还是袜子。'],
+  ['温泉酒店遗址', '空荡浴场', '“恒温池”三个字在墙上热得非常讽刺。'],
+  ['城市植物园', '雾化温室', '植物们蔫得很体面，喷雾管偶尔还记得自己是喷雾管。'],
+  ['电视塔底层', '设备维护区', '塔身晒得发亮，底层机房却藏着一点冷风。'],
+  ['跨江大桥桥肚', '检修平台', '桥面烫得像锅，桥肚阴影像临时避难所。'],
+  ['地下美食街', '关闭的冰粉摊', '招牌写着“冰凉一夏”，老板和冰都不在。'],
+  ['旧银行金库', '厚重金属门', '金库不一定有钱，但隔热效果很有钱。'],
+  ['市政档案馆', '地下恒温库', '档案比人凉快，这件事很伤人但很有用。'],
+  ['海鲜批发市场', '空冷链车厢', '车厢里没有海鲜，只有一股“差点得救”的味道。'],
+  ['烂尾商住楼', '负一层泵房', '水泵停了，墙角却有几桶没人敢认领的水。'],
+  ['旧电影院', '放映机房', '银幕上没有电影，只有一只晒晕的广告牌。'],
+  ['环城隧道', '应急停车带', '隧道里凉一点，回声把你的喘气放大成灾难片预告。'],
+  ['儿童乐园', '海盗船控制室', '海盗船不动了，控制室里还藏着应急电池。'],
+  ['旧制冰厂', '融化车间', '墙上写着“安全生产”，地上写着“曾经很冷”。'],
+  ['邮政分拣站', '绿色铁皮棚下', '包裹安静地躺着，像一群拒绝签收高温的证人。'],
+  ['城市博物馆', '恐龙展厅', '恐龙骨架看着你，仿佛在说“我懂灭绝”。'],
+  ['高架桥下市集', '临时遮阳摊', '摊主们用纸箱和意志力撑起一片小阴影。'],
+  ['旧体育馆', '冰球更衣室', '更衣室早没冰了，但墙体还保留一点冷门尊严。'],
+  ['广播电视仓库', '道具云朵旁', '道具云朵不会下雨，但能挡住一点太阳。'],
+  ['旧书批发城', '地下打包区', '成捆的书挡住热风，知识终于有了物理用途。'],
+  ['山顶缆车站', '停运站台', '缆车不来，风却来了半口。'],
+  ['废弃泳装店', '试衣间走廊', '镜子照出你和热浪互相嫌弃的样子。'],
+  ['冷链培训中心', '模拟冷库门口', '模拟冷库居然还有点用，培训终于落地。'],
+  ['老火车货场', '冷藏车皮', '车皮门缝漏出凉意，像历史偷偷给你递纸条。']
+];
+
+const generatedThemes = [
+  ['寻宝', '翻找密封箱', 'Dice5', '检定：运气，目标 8+。', { check: { stat: 'luck', target: 8, successTemp: -0.9, failTemp: 0.5 }, water: 5, money: 2, reason: '成功找到水和零钱；失败只找到一张热到卷边的说明书。' }],
+  ['检修', '修好嗡嗡作响的设备', 'Battery', '检定：精神，目标 9+。', { check: { stat: 'mind', target: 9, successTemp: -1.0, failTemp: 0.6 }, power: 7, reason: '成功让设备吐出冷风和电力；失败被说明书嘲笑到升温。' }],
+  ['阴影交易', '和摊主换一块阴影', 'Wallet', '需要现金 5。', { requires: { money: 5 }, money: -5, temp: -0.8, mind: 2, reason: '现金换来短暂阴影，钱包变轻，身体变凉。' }],
+  ['水源追踪', '沿着滴水声探索', 'Droplets', '补水降温。', { temp: -0.7, water: 9, reason: '你找到一处漏水点，虽然不体面，但足够救命。' }],
+  ['支线线索', '记录墙上的旧地图', 'Timer', '获得后续线索。', { temp: 0.3, mind: 2, flag: 'parkingMap', reason: '旧地图标出地下路线，但你站在墙边抄得满头冒汗。线索有了，热量也到账。' }],
+  ['联盟机会', '邀请路人共建遮阳点', 'ShieldAlert', '建立楼顶联盟。', { temp: 0.2, water: -5, morale: 5, flag: 'roofAlliance', reason: '你分出水和时间换来互助，联盟成立了，体温也被会议流程烤了一下。' }],
+  ['太阳能试验', '架起小太阳能板', 'Zap', '获得电力。', { temp: 0.2, power: 12, flag: 'solarPanel', reason: '你多晒了一会儿，但电力回来了。太阳第一次像个不太讨厌的同事。' }],
+  ['冰券奇遇', '翻到旧冰块兑换券', 'Wallet', '获得冰块券。', { temp: 0.2, money: 2, flag: 'iceCoupon', reason: '你找到一张冰块券，纸很皱，希望很直，但翻箱倒柜让体温略升。' }],
+  ['名声风险', '插队抢占冷风口', 'Skull', '高风险。', { check: { stat: 'guts', target: 10, successTemp: -1.1, failTemp: 1.0 }, flag: 'badReputation', reason: '成功抢到冷风；失败把名声晒成黑历史。' }],
+  ['搞笑避暑', '试用奇怪降温偏方', 'Soup', '搞笑选项。', { temp: 0.8, mind: 5, morale: 4, water: -3, reason: '偏方科学性存疑，娱乐性很强；你笑出了汗，热浪赢回一局。' }]
+];
+
+const contextChoiceSets = [
+  {
+    text: () => '摸进背阴处',
+    icon: 'Droplets',
+    detail: '小幅降温但耗水。',
+    data: (place, spot) => ({
+      temp: -0.3,
+      water: -5,
+      body: -1,
+      reason: `你绕到${spot}背阴处，确实少晒一点；但慢慢摸索消耗水分，${place}没有免费午休。`
+    })
+  },
+  {
+    text: () => '拆旧线缆',
+    icon: 'Battery',
+    detail: '获得电力但明显升温。',
+    data: (place, spot) => ({
+      temp: 0.7,
+      power: 10,
+      body: -3,
+      reason: `${spot}的旧线缆烫得像刚出锅，你拆到电力，也把${place}的热量拆进了身体。`
+    })
+  },
+  {
+    text: () => '向管理员套话',
+    icon: 'Brain',
+    detail: '恢复精神但花现金。',
+    data: (place) => ({
+      requires: { money: 3 },
+      money: -3,
+      temp: 0.4,
+      mind: 7,
+      reason: `你用一点现金换来${place}的避热点情报，脑子清醒了，嘴皮子也被热风烤干了。`
+    })
+  },
+  {
+    text: () => '冲过开阔地',
+    icon: 'Flame',
+    detail: '省时间但升温。',
+    data: (_place, spot) => ({
+      temp: 1.1,
+      body: -4,
+      morale: 3,
+      reason: `你选择硬冲${spot}，路线短，热量也短平快地到账。士气有了，汗也有了。`
+    })
+  },
+  {
+    text: () => '封住热风口',
+    icon: 'ShieldAlert',
+    detail: '检定：体力，目标 9+。',
+    data: (place) => ({
+      check: { stat: 'body', target: 9, successTemp: -0.8, failTemp: 0.9 },
+      water: -2,
+      reason: `成功能堵住${place}的热风口；失败就是和热风贴脸摔跤。`
+    })
+  },
+  {
+    text: () => '搜应急柜',
+    icon: 'Wallet',
+    detail: '检定：运气，目标 10+。',
+    data: (_place, spot) => ({
+      check: { stat: 'luck', target: 10, successTemp: -0.5, failTemp: 0.6 },
+      money: 4,
+      water: 3,
+      reason: `成功能从${spot}应急柜里翻出补给；失败只翻出一张“请保持冷静”的废纸。`
+    })
+  },
+  {
+    text: () => '组临时队',
+    icon: 'Timer',
+    detail: '支线但耗资源。',
+    data: (place) => ({
+      temp: 0.5,
+      water: -4,
+      mind: -2,
+      morale: 7,
+      flag: 'roofAlliance',
+      reason: `你在${place}拉起临时互助队，未来可能有人帮你；现在先被会议和热浪双重加热。`
+    })
+  },
+  {
+    text: () => '开避暑直播',
+    icon: 'Volume2',
+    detail: '搞笑赚钱但升温。',
+    data: (_place, spot) => ({
+      temp: 1.0,
+      money: 5,
+      mind: -4,
+      reason: `你在${spot}开播讲求生段子，打赏来了，冷气没来。弹幕很热闹，你也很热。`
+    })
+  },
+  {
+    text: () => '标记后续路线',
+    icon: 'Gauge',
+    detail: '获得地图支线但升温。',
+    data: (place) => ({
+      temp: 0.4,
+      mind: 2,
+      flag: 'parkingMap',
+      reason: `你把${place}的阴影路线记进地图，后续可能少走弯路；现在多站了一会儿，体温上扬。`
+    })
+  },
+  {
+    text: () => '搬开挡路杂物',
+    icon: 'ShieldAlert',
+    detail: '耗体力换补给。',
+    data: (_place, spot) => ({
+      temp: 0.6,
+      body: -5,
+      water: 6,
+      reason: `你搬开${spot}的杂物找到水，体力被热浪啃了一口，补给算是赔礼。`
+    })
+  },
+  {
+    text: () => '翻找冰块券',
+    icon: 'Wallet',
+    detail: '支线小收益。',
+    data: (place) => ({
+      temp: 0.3,
+      money: 2,
+      flag: 'iceCoupon',
+      reason: `你在${place}翻到一张冰块券，纸面很凉，翻找过程很热。`
+    })
+  },
+  {
+    text: () => '蹲守等风',
+    icon: 'Brain',
+    detail: '恢复精神但不稳定。',
+    data: (_place, spot) => ({
+      temp: 0.5,
+      mind: 6,
+      morale: 2,
+      reason: `你在${spot}等来半口风，也等来一身汗。精神回了一点，体温不太配合。`
+    })
+  }
+];
+
+function makeContextChoices(place, spot, theme, placeIndex, themeIndex) {
+  return [0, 1, 2].map((offset) => {
+    const template = contextChoiceSets[(placeIndex * 3 + themeIndex + offset * 5) % contextChoiceSets.length];
+    const data = template.data(place, spot);
+    return c(
+      `${template.text(place, spot)}，${themeActionText(theme, placeIndex, themeIndex, offset)}`,
+      template.icon,
+      template.detail,
+      {
+        ...data,
+        reason: `${data.reason}${contextReasonTail(theme, place, spot, offset)}`
+      }
+    );
+  });
+}
+
+function contextReasonTail(theme, place, spot, offset) {
+  const tails = {
+    寻宝: [
+      ` 你顺手翻了${spot}的角落，找到的东西不多，但足够证明这里没白来。`,
+      ` ${place}的储物痕迹很乱，你少走一步弯路，就少被热浪多烤一分钟。`,
+      ` 那些被遗忘的箱柜给了你一点线索，也给了汗水继续营业的理由。`
+    ],
+    检修: [
+      ` 设备虽然老得像退休返聘，但一旦恢复转动，热空气就没那么嚣张。`,
+      ` 你把故障点摸清了，后续再遇到风扇、电池和排风口就不会像猜谜。`,
+      ` 这类地方的冷气都藏在机器脾气里，修得好是降温，修不好是桑拿。`
+    ],
+    阴影交易: [
+      ` 阴影在这里已经变成硬通货，你多问一句价，就少被坑一层皮。`,
+      ` 摊主看你不像完全好骗，交易成本终于从“离谱”降到“还能忍”。`,
+      ` 你学会了这里的遮阳规矩，至少下一次不会拿现金买到一片心理阴影。`
+    ],
+    水源追踪: [
+      ` 水声在热浪里比导航还可信，你跟着它走，身体终于得到一点实际回报。`,
+      ` ${spot}附近的潮气不是幻觉，补水机会就藏在这些不起眼的缝里。`,
+      ` 找水这件事不体面但科学，汗腺收到补给后立刻恢复一点职业道德。`
+    ],
+    支线线索: [
+      ` 墙上的标记和旧路线对得上，后面也许能少走一段要命的晒路。`,
+      ` 线索暂时不能喝也不能吹风，但它能让你下一次少犯热到发昏的错。`,
+      ` 你把可疑记号记下来，未来的你大概率会感谢现在这个还没熟透的你。`
+    ],
+    联盟机会: [
+      ` 临时队伍吵归吵，真遇到太阳发疯时，多一个人就多一片能凑出来的阴影。`,
+      ` 你把互助关系往前推了一点，代价是现场沟通热得像开会没空调。`,
+      ` 这不是单纯聊天，是把零散幸存者拼成一把勉强能遮阳的伞。`
+    ],
+    太阳能试验: [
+      ` 光照角度测准后，太阳从纯粹敌人变成了非常讨厌但能发电的同事。`,
+      ` 你多晒一会儿换到电力情报，身体抱怨，电池表示可以接受。`,
+      ` ${place}的日照太足，坏消息是烫，好消息是终于能被你利用一点。`
+    ],
+    冰券奇遇: [
+      ` 旧票据看着像垃圾，但末日里能换冰的纸比励志标语有用多了。`,
+      ` 你把票根收好，未来也许能换来一块真正说话算话的冰。`,
+      ` 翻票据这事很狼狈，不过比空手对着太阳讲道理靠谱。`
+    ],
+    名声风险: [
+      ` 你避开了一部分视线，但这种做法会在幸存者小圈子里留下热乎乎的传闻。`,
+      ` 这里的人记性不差，尤其会记住谁抢过冷风、谁把尴尬留给别人。`,
+      ` 名声一旦变热，后面排队、交易和求助都会多一层麻烦。`
+    ],
+    搞笑避暑: [
+      ` 偏方听起来离谱，执行起来更离谱，但至少精神没有当场融化。`,
+      ` 围观群众笑得很开心，科学原理沉默了一会儿，体温也趁机刷了存在感。`,
+      ` 你用荒诞感对抗热浪，效果不稳定，但心态暂时没被晒成干货。`
+    ]
+  };
+  const options = tails[theme] ?? [` ${place}的情况被你摸清了一点，代价也实实在在落到了身上。`];
+  return options[offset % options.length];
+}
+
+function themeActionText(theme, placeIndex = 0, themeIndex = 0, offset = 0) {
+  const actions = {
+    寻宝: ['翻角落旧箱', '查可疑柜门', '摸索隐藏隔层', '翻找密封袋', '搜寻冷物资'],
+    检修: ['听设备异响', '排查供电口', '拧紧散热片', '重接旧线路', '试启备用机'],
+    阴影交易: ['询问遮阳位', '压低阴影租金', '换半小时凉处', '打听棚位规矩', '争取靠墙阴凉'],
+    水源追踪: ['追着滴水找', '查潮湿墙缝', '听管道回声', '试探漏水点', '沿水痕前进'],
+    支线线索: ['抄下旧标记', '拍下路线图', '辨认墙上暗号', '记录可疑编号', '对照旧地图'],
+    联盟机会: ['拉人搭遮阳', '凑临时小队', '交换互助口令', '分工守住阴影', '约定后续接应'],
+    太阳能试验: ['测电板角度', '找最佳日照点', '调整充电朝向', '试接太阳能线', '记录发电时段'],
+    冰券奇遇: ['翻找兑换章', '核对旧票根', '收好冰券线索', '查过期票据', '辨认真冰凭证'],
+    名声风险: ['躲开熟人视线', '绕过围观人群', '压低存在感', '避开摊主记仇', '混进人群边缘'],
+    搞笑避暑: ['试偏方效果', '留个冷笑话', '测试离谱装备', '假装自己很凉', '保住一点心态']
+  };
+  const options = actions[theme] ?? ['处理当前麻烦'];
+  return options[(placeIndex * 2 + themeIndex + offset) % options.length];
+}
+
+function makePrimaryChoice(place, spot, theme, action, icon, detail, data) {
+  return c(action, icon, detail, {
+    ...data,
+    reason: `${data.reason}${primaryReasonTail(theme, place, spot)}`
+  });
+}
+
+function generatedActionText(theme, action, placeIndex) {
+  const actions = {
+    寻宝: ['翻找密封箱', '撬开旧补给柜', '摸索封存角落', '检查遗留背包', '搜寻未拆物资'],
+    检修: ['修好嗡嗡设备', '重启老旧风机', '排查冷风管线', '接回备用电源', '敲醒罢工机器'],
+    阴影交易: ['换半片阴凉', '租临时遮阳位', '买一段棚下时间', '谈下靠墙凉处', '换取避暑角落'],
+    水源追踪: ['沿滴水声探索', '寻找漏水管', '追查潮湿墙缝', '接住管道冷凝水', '顺着水痕摸路'],
+    支线线索: ['记录旧地图', '拓下墙上暗号', '拍下路线标记', '核对旧门牌编号', '抄走避暑线索'],
+    联盟机会: ['邀请路人入伙', '拉起互助队', '交换接应点', '凑人守阴影', '组织轮流放哨'],
+    太阳能试验: ['架起小太阳能板', '校准充电角度', '接上备用电池板', '测试光照发电', '摆正临时电板'],
+    冰券奇遇: ['翻到旧冰块兑换券', '找出过期冰票', '核验冷饮票根', '摸到兑换印章', '收起真冰凭证'],
+    名声风险: ['插队抢占冷风口', '硬挤进凉风位', '抢先占住风口', '借乱混进阴影区', '冒名领冷风号'],
+    搞笑避暑: ['试用奇怪降温偏方', '挑战离谱冷感仪式', '戴上自制遮阳神器', '表演心理制冰术', '测试民间凉快秘方']
+  };
+  const options = actions[theme] ?? [action];
+  return options[placeIndex % options.length];
+}
+
+function primaryReasonTail(theme, place, spot) {
+  const tails = {
+    寻宝: ` ${spot}里留下的密封箱和旧柜子没有被完全搜空，你冒着热浪翻找，换来的是实打实的补给机会。`,
+    检修: ` ${place}的设备还没彻底报废，修好它就可能换来风、电或短暂冷气，修砸了也会让你被热风现场批评。`,
+    阴影交易: ` ${spot}的遮阳位已经被摊主当成稀缺商品，你花钱买的不是面子，是少晒一会儿的物理优势。`,
+    水源追踪: ` 滴水声从${spot}深处传来，你追的是水源，也是身体继续散热的最后一点底气。`,
+    支线线索: ` ${spot}的旧地图和涂鸦能指向后续路线，现在多抄几笔，后面可能少走一段晒到怀疑人生的路。`,
+    联盟机会: ` ${place}的人都缺资源，但也都缺一个肯先开口的人；互助关系一旦搭起来，后面能换来阴影、风扇和救场。`,
+    太阳能试验: ` ${place}的太阳毒得离谱，反过来也意味着电力机会充足，你是在把敌方火力改造成临时能源。`,
+    冰券奇遇: ` ${spot}残留的票据和兑换章还有价值，找到它们也许能在后面换到真冰，而不只是心理安慰。`,
+    名声风险: ` ${place}人多眼杂，你要抢冷风或插队就得承担后续名声成本，凉快可能是真的，麻烦也是真的。`,
+    搞笑避暑: ` ${spot}的偏方摊看起来不太科学，但热浪已经很荒唐了，你只是用更荒唐的方式抢回一点心态。`
+  };
+  return tails[theme] ?? ` ${place}的情况会直接影响这次选择的代价和收益。`;
+}
+
+const generatedEventLibrary = generatedPlaces.flatMap(([place, spot, scene], placeIndex) =>
+  generatedThemes.map(([theme, action, icon, detail, data], themeIndex) => {
+    const turn = (placeIndex + themeIndex) % 3;
+    const contextChoices = makeContextChoices(place, spot, theme, placeIndex, themeIndex);
+    return {
+      turn,
+      title: `${place}${theme}`,
+      place: `${place} · ${spot}`,
+      scene,
+      headline: `${place}不会免费送命运，所有活路都要付出一点热量、资源或尊严。`,
+      choices: [
+        makePrimaryChoice(place, spot, theme, generatedActionText(theme, action, placeIndex), icon, detail, data),
+        ...contextChoices
+      ]
+    };
+  })
+);
+
+const findScheduledEvent = (title) => schedule.flat().find((event) => event.title === title);
+const branchFollowups = [
+  { flag: 'shopFriend', turn: 0, weight: 12, event: shop },
+  { flag: 'bathEnemy', turn: 2, weight: 12, event: bath },
+  { flag: 'parkingMap', turn: 1, weight: 12, event: parking },
+  { flag: 'solarPanel', turn: 1, weight: 10, event: findScheduledEvent('正午太阳能板回访') },
+  { flag: 'roofAlliance', turn: 0, weight: 10, event: findScheduledEvent('楼顶避暑联盟') },
+  { flag: 'roofAlliance', turn: 1, weight: 10, event: findScheduledEvent('午间联盟分歧') },
+  { flag: 'iceCoupon', turn: 2, weight: 10, event: findScheduledEvent('傍晚降温券兑换') },
+  { flag: 'wanted', turn: 0, weight: 10, event: findScheduledEvent('冷库通缉令') },
+  { flag: 'reliefLead', turn: 1, weight: 8, event: findScheduledEvent('午后移动水站') },
+  { flag: 'hotlineFavor', turn: 1, weight: 8, event: findScheduledEvent('午后移动水站') }
+].filter((item) => item.event);
+
+function getWeightedBranchEvents(state) {
+  return branchFollowups
+    .filter((item) => state.flags[item.flag] && item.turn === state.turn)
+    .flatMap((item) => Array.from({ length: item.weight }, () => item.event));
+}
+
 export function getCurrentEvent(state) {
-  if (state.flags.shopFriend && state.day === 4 && state.turn === 0) return shop;
-  if (state.flags.bathEnemy && state.day === 8 && state.turn === 2) return bath;
-  if (state.flags.parkingMap && state.day === 9 && state.turn === 1) return parking;
-  return schedule[state.day - 1][state.turn];
+  if (state.flags.shopFriend && state.day === 4 && state.turn === 0) return withKey(shop);
+  if (state.flags.bathEnemy && state.day === 8 && state.turn === 2) return withKey(bath);
+  if (state.flags.parkingMap && state.day === 9 && state.turn === 1) return withKey(parking);
+  const base = schedule[(state.day - 1) % schedule.length][state.turn];
+  const generated = generatedEventLibrary.filter((event) => event.turn === state.turn);
+  const chaos = cityChaosEvents.filter((event) => event.turn === state.turn);
+  const cityLife = cityLifeEvents.filter((event) => event.turn === state.turn);
+  const branchBoost = getWeightedBranchEvents(state);
+  const pool = [base, ...branchBoost, ...randomEvents[state.turn], ...chaos, ...cityLife, ...generated].filter((event) => {
+    if (state.day <= 1 && event.title.includes('文文')) return false;
+    return true;
+  });
+  const seen = new Set(state.seenEvents ?? []);
+  const freshPool = pool.filter((event) => !seen.has(`${event.title}|${event.place}`));
+  const usablePool = freshPool.length > 0 ? freshPool : pool;
+  const index = Math.floor((state.eventSalt ?? 0) * usablePool.length) % usablePool.length;
+  return withKey(usablePool[index]);
 }
 
 const suddenEvents = [
@@ -558,6 +1278,13 @@ const suddenEvents = [
     power: 8,
     temp: 0.2,
     text: '一块小太阳能板意外充上电，代价是你多晒了一会儿。电力 +8，体温 +0.2°C。'
+  },
+  {
+    title: '突发：天降仙女文文',
+    tempTo: 36,
+    fullRestore: true,
+    morale: 12,
+    text: '天空裂开一线清凉，仙女文文踏着像冰晶一样的光降临。她美得温柔又明亮，眼睛像末日前最后一片干净湖水，笑容让热浪自动退后三步。她带来天界冷凝补给，合理原因是高温世界触发了“过热保护”：水分、电力、现金、精神、体力全部补到 99，体温降至 36°C。'
   }
 ];
 
@@ -565,5 +1292,10 @@ export function rollSuddenEvent(state) {
   if (state.status !== 'playing') return null;
   const risk = state.temp >= 44.5 || state.water < 14 || state.power < 8 || state.mind < 18 ? 0.42 : 0.24;
   if (Math.random() > risk) return null;
-  return suddenEvents[Math.floor(Math.random() * suddenEvents.length)];
+  const pool = suddenEvents.filter((event) => {
+    if (state.day <= 1 && event.title.includes('文文')) return false;
+    if (state.currentEventIsWenwen && event.title.includes('文文')) return false;
+    return true;
+  });
+  return pool[Math.floor(Math.random() * pool.length)];
 }
