@@ -294,7 +294,7 @@ function ChoiceButton({ choice, index, onChoose, disabled, disabledReason }) {
 function createAudioEngine() {
   if (typeof document === 'undefined') return null;
   const ambient = document.createElement('audio');
-  ambient.src = '/assets/audio/heat-ambient.wav';
+  ambient.src = '/assets/audio/heat-ambient.m4a';
   ambient.loop = true;
   ambient.volume = 0.48;
   const clickSound = document.createElement('audio');
@@ -387,7 +387,7 @@ function App() {
             <small>位置：{event.place}</small>
           </div>
           <div className="scene">
-            <img src="/assets/heat-apocalypse-scene.png" alt="高温末日漫画场景" />
+            <img src="/assets/heat-apocalypse-scene.jpg" alt="高温末日漫画场景" />
             <div className="speech">
               <b>{event.title}</b>
               <p>{event.scene}</p>
