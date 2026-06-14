@@ -1249,6 +1249,27 @@ h1 {
     border-width: 3px;
   }
 
+  .sudden-bubble {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 8px;
+    width: auto;
+    padding: 5px 7px;
+    border-width: 3px;
+    font-size: 11px;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.32);
+  }
+
+  .sudden-bubble b {
+    font-size: 12px;
+    margin-bottom: 1px;
+  }
+
+  .sudden-bubble p {
+    line-height: 1.18;
+  }
+
   .scene,
   .scene img {
     min-height: 0;
