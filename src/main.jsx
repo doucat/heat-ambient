@@ -362,7 +362,7 @@ function StartScreen({ onStart, onToggleSound, soundOn }) {
               </button>
             ))}
           </div>
-          <button className="sound-toggle start-sound" onClick={onToggleSound}>
+          <button className={`sound-toggle start-sound ${soundOn ? 'active' : ''}`} onClick={onToggleSound}>
             <Volume2 size={18} />
             {soundOn ? '关闭声音' : '开启声音'}
           </button>
@@ -552,24 +552,19 @@ function App() {
         </aside>
 
         <section className="panel event-panel">
-          <div className="scene">
+          <div className={`scene ${wenwenActive ? 'scene-cold' : 'scene-hot'}`}>
             <img src={sceneImage} alt="高温末日漫画场景" />
+            <div className="scene-effect" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
             {state.lastSudden && (
               <div className="sudden-bubble">
                 <b>突发事件</b>
                 <p>{state.lastSudden}</p>
               </div>
             )}
-          </div>
-          <div className="utility-actions">
-            <button className="reset" onClick={reset}>
-              <RotateCcw size={18} />
-              重新开始
-            </button>
-            <button className="sound-toggle" onClick={toggleSound}>
-              <Volume2 size={18} />
-              {soundOn ? '关闭声音' : '开启声音'}
-            </button>
           </div>
           <section className="day-card side-day-card">
             <b>DAY {String(state.day).padStart(2, '0')} / {state.challengeDays}</b>
@@ -590,6 +585,14 @@ function App() {
             <Gauge size={22} />
             <b>生存状态</b>
             <span>别硬撑</span>
+            <div className="survival-actions">
+              <button className="reset" onClick={reset} aria-label="重新开始" title="重新开始">
+                <RotateCcw size={18} />
+              </button>
+              <button className={`sound-toggle ${soundOn ? 'active' : ''}`} onClick={toggleSound} aria-label={soundOn ? '关闭声音' : '开启声音'} title={soundOn ? '关闭声音' : '开启声音'}>
+                <Volume2 size={18} />
+              </button>
+            </div>
           </div>
           <div className="top-survival-body">
             <Thermometer temp={state.temp} />

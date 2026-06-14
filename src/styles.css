@@ -307,7 +307,7 @@ h1 {
 
 .top-survival-body {
   display: grid;
-  grid-template-columns: 290px 1fr;
+  grid-template-columns: 290px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
 }
@@ -334,6 +334,13 @@ h1 {
 
 .top-resources .resource {
   margin-top: 0;
+}
+
+.survival-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 34px);
+  gap: 6px;
+  margin-left: 6px;
 }
 
 .survival .panel-title {
@@ -489,6 +496,236 @@ h1 {
   object-fit: cover;
   display: block;
   filter: saturate(1.05) contrast(1.03);
+}
+
+.scene-effect,
+.scene-effect span,
+.scene::before,
+.scene::after {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.scene-effect {
+  z-index: 1;
+  overflow: hidden;
+}
+
+.scene-hot img {
+  filter: saturate(1.05) contrast(1.03);
+}
+
+.scene-hot::before {
+  content: "";
+  z-index: 1;
+  opacity: 0.42;
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(90deg, transparent 0 18%, rgba(255, 95, 20, 0.22) 23%, transparent 31% 47%, rgba(255, 199, 64, 0.14) 55%, transparent 68% 100%),
+    repeating-linear-gradient(180deg, rgba(255, 219, 112, 0.12) 0 2px, transparent 2px 16px);
+  transform: skewX(-7deg) translateX(-8%);
+  animation: heat-warp 3.4s linear infinite;
+}
+
+.scene-hot::after {
+  content: "";
+  z-index: 1;
+  opacity: 0.58;
+  background:
+    radial-gradient(ellipse at 70% 8%, rgba(255, 223, 82, 0.24), transparent 34%),
+    linear-gradient(180deg, rgba(255, 111, 22, 0.1), transparent 42%, rgba(255, 76, 18, 0.16));
+  animation: melt-glow 4.8s ease-in-out infinite;
+}
+
+.scene-hot .scene-effect span {
+  width: 12%;
+  height: 130%;
+  top: -15%;
+  left: var(--x);
+  opacity: 0.28;
+  background: linear-gradient(180deg, transparent, rgba(255, 181, 43, 0.55), rgba(222, 50, 24, 0.22), transparent);
+  filter: blur(10px);
+  transform: skewX(-12deg);
+  animation: heat-drip var(--speed) ease-in-out infinite;
+}
+
+.scene-hot .scene-effect span:nth-child(1) {
+  --x: 12%;
+  --speed: 5.4s;
+}
+
+.scene-hot .scene-effect span:nth-child(2) {
+  --x: 48%;
+  --speed: 6.2s;
+  animation-delay: -2s;
+}
+
+.scene-hot .scene-effect span:nth-child(3) {
+  --x: 78%;
+  --speed: 4.8s;
+  animation-delay: -3.1s;
+}
+
+.scene-cold img {
+  filter: saturate(1.04) contrast(1.04) brightness(1.06) hue-rotate(4deg);
+}
+
+.scene-cold::before {
+  content: "";
+  z-index: 1;
+  opacity: 0.58;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(220, 255, 255, 0.72) 0 2px, transparent 3px),
+    radial-gradient(circle at 44% 8%, rgba(174, 240, 255, 0.7) 0 1px, transparent 3px),
+    radial-gradient(circle at 72% 20%, rgba(239, 255, 255, 0.74) 0 2px, transparent 4px),
+    radial-gradient(circle at 86% 4%, rgba(151, 222, 255, 0.65) 0 1px, transparent 3px);
+  background-size: 130px 150px, 170px 180px, 190px 160px, 150px 190px;
+  animation: crystal-fall 7.2s linear infinite;
+}
+
+.scene-cold::after {
+  content: "";
+  z-index: 1;
+  opacity: 0.52;
+  background:
+    linear-gradient(135deg, rgba(211, 255, 255, 0.28), transparent 34%, rgba(131, 215, 255, 0.2) 66%, transparent),
+    radial-gradient(ellipse at 50% 18%, rgba(236, 255, 255, 0.22), transparent 42%);
+  animation: frost-shimmer 5.5s ease-in-out infinite;
+}
+
+.scene-cold .scene-effect span {
+  width: 110px;
+  height: 110px;
+  top: -120px;
+  left: var(--x);
+  opacity: 0.5;
+  background:
+    linear-gradient(45deg, transparent 47%, rgba(225, 255, 255, 0.8) 48% 52%, transparent 53%),
+    linear-gradient(-45deg, transparent 47%, rgba(148, 225, 255, 0.65) 48% 52%, transparent 53%);
+  filter: drop-shadow(0 0 8px rgba(173, 239, 255, 0.7));
+  animation: ice-drift var(--speed) linear infinite;
+}
+
+.scene-cold .scene-effect span:nth-child(1) {
+  --x: 14%;
+  --speed: 6.4s;
+}
+
+.scene-cold .scene-effect span:nth-child(2) {
+  --x: 52%;
+  --speed: 7.5s;
+  animation-delay: -2.5s;
+}
+
+.scene-cold .scene-effect span:nth-child(3) {
+  --x: 78%;
+  --speed: 5.8s;
+  animation-delay: -4s;
+}
+
+.sudden-bubble {
+  z-index: 2;
+}
+
+@keyframes heat-breath {
+  0%, 100% {
+    filter: saturate(1.05) contrast(1.03);
+  }
+  50% {
+    filter: saturate(1.1) contrast(1.05) brightness(1.01);
+  }
+}
+
+@keyframes heat-warp {
+  from {
+    background-position: 0 0, 0 0;
+    transform: skewX(-7deg) translateX(-10%);
+  }
+  to {
+    background-position: 190px 36px, 0 64px;
+    transform: skewX(-7deg) translateX(8%);
+  }
+}
+
+@keyframes melt-glow {
+  0%, 100% {
+    opacity: 0.42;
+    transform: translateY(-2px);
+  }
+  50% {
+    opacity: 0.68;
+    transform: translateY(5px);
+  }
+}
+
+@keyframes heat-drip {
+  0%, 100% {
+    transform: translateY(-8%) skewX(-12deg) scaleY(0.96);
+  }
+  50% {
+    transform: translateY(8%) skewX(-9deg) scaleY(1.08);
+  }
+}
+
+@keyframes cold-breath {
+  0%, 100% {
+    filter: saturate(1.04) contrast(1.04) brightness(1.06) hue-rotate(4deg);
+  }
+  50% {
+    filter: saturate(1.08) contrast(1.04) brightness(1.08) hue-rotate(6deg);
+  }
+}
+
+@keyframes crystal-fall {
+  from {
+    background-position: 0 -180px, 0 -120px, 0 -220px, 0 -160px;
+  }
+  to {
+    background-position: -40px 180px, 35px 220px, -55px 170px, 45px 210px;
+  }
+}
+
+@keyframes frost-shimmer {
+  0%, 100% {
+    opacity: 0.38;
+    transform: translateX(-1%);
+  }
+  50% {
+    opacity: 0.62;
+    transform: translateX(1%);
+  }
+}
+
+@keyframes ice-drift {
+  0% {
+    transform: translate3d(-20px, -130px, 0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate3d(28px, 560px, 0) rotate(180deg) scale(1.05);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene img,
+  .scene::before,
+  .scene::after,
+  .scene-effect span {
+    animation: none !important;
+  }
+
+  .scene-hot::before,
+  .scene-hot::after,
+  .scene-cold::before,
+  .scene-cold::after {
+    opacity: 0.22;
+  }
 }
 
 .speech {
@@ -741,12 +978,27 @@ h1 {
   justify-content: center;
   align-items: center;
   gap: 8px;
-  background: #1b403f;
+  background: #2f2923;
   color: var(--paper);
-  border: 3px solid var(--cyan);
+  border: 3px solid #6b5a49;
   padding: 9px;
   cursor: pointer;
   font-weight: 900;
+}
+
+.sound-toggle.active {
+  background: #1b403f;
+  color: #fff8e4;
+  border-color: var(--cyan);
+  box-shadow: inset 0 0 0 2px rgba(37, 188, 190, 0.28), 0 0 12px rgba(37, 188, 190, 0.38);
+}
+
+.survival-actions .reset,
+.survival-actions .sound-toggle {
+  width: 34px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
 }
 
 .ending {
@@ -782,6 +1034,15 @@ h1 {
 }
 
 @media (max-width: 1180px) {
+  .start-panel {
+    grid-template-columns: 1fr;
+    width: min(720px, 100%);
+  }
+
+  .start-art {
+    min-height: 240px;
+  }
+
   .layout {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -795,6 +1056,10 @@ h1 {
 
   .top-survival-body {
     grid-template-columns: 1fr;
+  }
+
+  .survival-actions {
+    grid-template-columns: repeat(2, 34px);
   }
 
   .top-resources {
@@ -813,11 +1078,89 @@ h1 {
 
 @media (max-width: 640px) {
   .app {
-    padding: 10px;
+    padding: 8px;
   }
 
   h1 {
     font-size: 42px;
+  }
+
+  .start-app {
+    min-height: 100svh;
+    align-items: start;
+  }
+
+  .start-panel {
+    gap: 6px;
+    padding: 6px;
+    border-width: 3px;
+    box-shadow: 0 4px 0 var(--shadow);
+  }
+
+  .start-art {
+    min-height: 128px;
+    max-height: 18svh;
+    border-width: 3px;
+  }
+
+  .start-copy {
+    gap: 6px;
+    padding: 9px;
+    border-width: 3px;
+  }
+
+  .start-copy .stamp {
+    font-size: 13px;
+    padding: 3px 7px;
+  }
+
+  .start-copy h1 {
+    font-size: 34px;
+    line-height: 0.95;
+    margin: 0;
+  }
+
+  .start-copy > p {
+    font-size: 13px;
+    line-height: 1.28;
+  }
+
+  .story-brief {
+    padding: 6px;
+    border-width: 2px;
+  }
+
+  .story-brief b {
+    margin-bottom: 2px;
+  }
+
+  .story-brief p {
+    font-size: 12px;
+    line-height: 1.32;
+  }
+
+  .challenge-grid {
+    gap: 5px;
+  }
+
+  .challenge-card {
+    padding: 7px;
+    border-width: 3px;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.34);
+  }
+
+  .challenge-card b {
+    font-size: 19px;
+    margin-bottom: 3px;
+  }
+
+  .challenge-card span {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .start-sound {
+    padding: 7px;
   }
 
   .day-card {
@@ -836,12 +1179,153 @@ h1 {
     grid-template-columns: 112px 64px 1fr;
   }
 
+  .survival-actions {
+    grid-template-columns: repeat(2, 32px);
+  }
+
+  .layout {
+    gap: 6px;
+  }
+
+  .panel {
+    padding: 7px;
+  }
+
+  .event-head {
+    padding: 7px;
+    margin-bottom: 6px;
+  }
+
+  .event-head span {
+    font-size: 18px;
+  }
+
+  .event-scene-copy {
+    font-size: 13px;
+    line-height: 1.25;
+    margin-top: 4px;
+  }
+
+  .choices {
+    gap: 6px;
+  }
+
   .choice {
-    grid-template-columns: 42px 1fr;
+    min-height: 48px;
+    grid-template-columns: 34px 1fr;
+    gap: 7px;
+    padding: 6px;
+    border-width: 3px;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.34);
+  }
+
+  .choice-num {
+    width: 30px;
+    height: 30px;
+    font-size: 17px;
+  }
+
+  .choice-copy b {
+    font-size: 14px;
+  }
+
+  .outcome-panel {
+    padding: 7px;
+    margin-top: 6px;
+    border-width: 2px;
+  }
+
+  .outcome-panel div {
+    margin-bottom: 2px;
+  }
+
+  .outcome-panel p {
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .scene {
+    height: 230px;
+    border-width: 3px;
+  }
+
+  .scene,
+  .scene img {
+    min-height: 0;
+  }
+
+  .side-day-card {
+    padding: 6px;
+    margin-top: 6px;
+  }
+
+  .side-day-card > b {
+    font-size: 20px;
+  }
+
+  .choice {
+    grid-template-columns: 34px 1fr;
   }
 
   .choice svg {
     display: none;
   }
 
+}
+
+@media (max-width: 640px) and (max-height: 720px) {
+  .app {
+    padding: 6px;
+  }
+
+  .start-panel {
+    gap: 4px;
+    padding: 5px;
+  }
+
+  .start-art {
+    min-height: 84px;
+    max-height: 13svh;
+  }
+
+  .start-copy {
+    gap: 4px;
+    padding: 7px;
+  }
+
+  .start-copy .stamp {
+    font-size: 12px;
+  }
+
+  .start-copy h1 {
+    font-size: 30px;
+  }
+
+  .start-copy > p,
+  .story-brief p,
+  .challenge-card span {
+    font-size: 11px;
+    line-height: 1.22;
+  }
+
+  .story-brief {
+    padding: 5px;
+  }
+
+  .challenge-grid {
+    gap: 4px;
+  }
+
+  .challenge-card {
+    padding: 5px 7px;
+  }
+
+  .challenge-card b {
+    font-size: 17px;
+    margin-bottom: 2px;
+  }
+
+  .start-sound {
+    padding: 6px;
+  }
 }
